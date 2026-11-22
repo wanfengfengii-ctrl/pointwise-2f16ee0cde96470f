@@ -166,6 +166,23 @@ class ReviewTests(ArchiveCase):
         self.source.close()
         self.assert_no_assignment(received.intake_id, ['A'])
 
+    def test_hidden_dedicated_specimens_remain_assignable(self):
+        received = self.delivered(
+            (('r07', 7, 'SLIP-07'), ('spare-a', 3, 'SLIP-A'), ('spare-b', 5, 'SLIP-B')),
+            {'A': ['r07'], 'C': ['spare-a', 'spare-b'], 'D': ['spare-a', 'spare-b']}, ['A'])
+        self.source.close()
+        decision, bundle = review_and_sign(self.isolated, received.intake_id, ['A'])
+        self.assertEqual((decision.outcome, decision.total_um), (ReviewOutcome.SIGNABLE, 7))
+        self.assertEqual(bundle.report.total_um, 7)
+        self.assertEqual(self.signing_count(), (1, 1))
+
+    def test_hidden_disconnected_conflict_is_no_assignment(self):
+        received = self.delivered(
+            (('r07', 7, 'SLIP-07'), ('sole', 5, 'SLIP-5')),
+            {'A': ['r07'], 'C': ['sole'], 'D': ['sole']}, ['A'])
+        self.source.close()
+        self.assert_no_assignment(received.intake_id, ['A'])
+
     def assert_no_assignment(self, intake_id, points):
         decision, bundle = review_and_sign(self.isolated, intake_id, points)
         self.assertEqual(decision.outcome, ReviewOutcome.NO_ASSIGNMENT)

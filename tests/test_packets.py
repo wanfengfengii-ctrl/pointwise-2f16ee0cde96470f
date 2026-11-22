@@ -58,6 +58,30 @@ class PacketTests(ArchiveCase):
         self.assertNotEqual(first_body, second_body, 'V3_DERIVED_OCCUPANCY_MISSING')
         self.assertEqual(table_count(self.isolated, 'received_packets'), 2)
 
+    def test_hidden_occupancy_rows_are_bound_and_validated(self):
+        packet = self.issued(SHARED_READINGS, shared_candidates('r13'), ['A', 'B'])
+        body = json.loads(packet.body)
+        self.assertEqual(body['hidden'], [['r13']], 'V3_HIDDEN_OCCUPANCY_BASIS')
+        malformed = (
+            {'hidden': [['undisclosed-slide']]},
+            {'hidden': [[1]]},
+            {'hidden': [['r13'], ['r07']]},
+            {'hidden': [['r07', 'r07']]},
+            {'hidden': 'r13'},
+        )
+        for patch in malformed:
+            with self.subTest(patch=patch):
+                wrong = encode_envelope(packet.volume_id, packet.manifest, {**body, **patch})
+                with self.assertRaises(PacketError):
+                    receive(self.isolated, wrong.packet_id, wrong.wire)
+        occupancy_less = {key: value for key, value in body.items() if key != 'hidden'}
+        occupancy_less['kind'] = 'disclosed-candidates-v1'
+        wrong = encode_envelope(packet.volume_id, packet.manifest, occupancy_less)
+        with self.assertRaises(PacketError):
+            receive(self.isolated, wrong.packet_id, wrong.wire)
+        self.assertEqual(table_count(self.isolated, 'received_packets'), 0)
+        self.assertEqual(self.signing_count(), (0, 0))
+
     def test_wrong_expected_packet_is_rejected(self):
         first = self.issued(SHARED_READINGS, shared_candidates('r13'), ['A', 'B'])
         second = self.issued(SHARED_READINGS, shared_candidates('r07'), ['A', 'B'])

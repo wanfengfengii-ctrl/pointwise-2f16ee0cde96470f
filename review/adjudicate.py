@@ -7,13 +7,17 @@ from review.requests import make_request
 from review.results import ReviewOutcome, make_decision
 
 
-def _feasible_readings(evidence, token):
-    readings = set()
+def _feasible_totals(evidence, selected):
     graph = evidence.candidates
-    for specimen in graph[token]:
-        if can_complete_assignment(graph, {token: specimen}):
-            readings.add(evidence.originals[specimen].micrometers)
-    return readings
+    totals = set()
+    for combo in product(*(graph[token] for token in selected)):
+        if len(set(combo)) != len(combo) and len(combo) > 1:
+            continue
+        if can_complete_assignment(graph, dict(zip(selected, combo))):
+            totals.add(sum(evidence.originals[specimen].micrometers for specimen in combo))
+            if len(totals) > 1:
+                break
+    return totals
 
 
 def review(connection, intake_id, points):
@@ -27,13 +31,9 @@ def review(connection, intake_id, points):
         return make_decision(request, ReviewOutcome.NO_ASSIGNMENT)
 
     selected = tuple(evidence.visible[point] for point in request.points)
-    readings = [_feasible_readings(evidence, token) for token in selected]
-    total = None
-    for values in product(*readings):
-        candidate_total = sum(values)
-        if total is not None and total != candidate_total:
-            return make_decision(request, ReviewOutcome.AMBIGUOUS)
-        total = candidate_total
-    if total is None:
+    totals = _feasible_totals(evidence, selected)
+    if not totals:
         raise PacketError('no selectable combination in a feasible packet')
-    return make_decision(request, ReviewOutcome.SIGNABLE, total)
+    if len(totals) != 1:
+        return make_decision(request, ReviewOutcome.AMBIGUOUS)
+    return make_decision(request, ReviewOutcome.SIGNABLE, totals.pop())
