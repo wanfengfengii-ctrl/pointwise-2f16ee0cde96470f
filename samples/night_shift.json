@@ -1,0 +1,12 @@
+{
+  "specimens": [
+    {"specimen_id": "r07", "micrometers": 7, "source_reference": "SLIP-07"},
+    {"specimen_id": "r11", "micrometers": 11, "source_reference": "SLIP-11"},
+    {"specimen_id": "r13", "micrometers": 13, "source_reference": "SLIP-13"}
+  ],
+  "disclosed": ["A", "B"],
+  "volumes": [
+    {"A": ["r07", "r11", "r13"], "B": ["r07", "r11", "r13"], "C": ["r13"]},
+    {"A": ["r07", "r11", "r13"], "B": ["r07", "r11", "r13"], "C": ["r07"]}
+  ]
+}
